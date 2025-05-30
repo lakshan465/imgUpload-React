@@ -1,0 +1,71 @@
+name: deploy-react-frontend
+
+on:
+  push:
+    branches:
+      - cicd  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+      
+      # giving  access to your workflow file have access to 
+      #your code files (like Dockerfiles, app code, etc.).
+        uses: actions/checkout@v3 
+
+      # - name: Set up Node
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: 18
+
+      # - name: Build React App
+      #   run: |
+      #     npm install
+      #     npm run build
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build \
+            --build-arg REACT_APP_BACKEND_URL=${{ secrets.REACT_BACKEND_URL }} \
+            -t ${{ secrets.DOCKER_HUB_REPO_FRONTEND }}:latest .
+          docker push ${{ secrets.DOCKER_HUB_REPO_FRONTEND }}:latest
+
+ 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+          DOCKER_IMAGE: ${{ secrets.DOCKER_HUB_REPO_FRONTEND }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << EOF
+
+          echo "Pulling latest frontend image..."
+          docker pull $DOCKER_IMAGE:latest
+
+          echo "Stopping existing frontend container if exists..."
+          docker stop frontend_container || true
+          docker rm frontend_container || true
+
+          echo "Running new frontend container..."
+          docker run -d --name frontend_container -p 80:80 \
+            --restart unless-stopped \
+            $DOCKER_IMAGE:latest
+
+          EOF
