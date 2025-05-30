@@ -33,7 +33,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build --build-arg REACT_APP_BACKEND_URL=${{ secrets.REACT_BACKEND_URL }} \
+          docker build --build-arg REACT_APP_BACKEND_URL=http://16.16.28.147:8080 \
             -t ${{ secrets.DOCKER_HUB_REPO_FRONTEND }}:latest .
       - name: Push Docker Image
         run: |
