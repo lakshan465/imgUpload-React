@@ -30,7 +30,7 @@ function View() {
 
     console.log(reducedUrl);
     try {
-      const response = await axios.delete("http://localhost:8080/file/delete", {
+      const response = await axios.delete(`${process.env.REACT_APP_BACKEND_URL}/file/delete`, {
         params: {
           fileS3Name: reducedUrl,
           id: id,
